@@ -8,7 +8,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional, Callable, Literal
 
 from rich.console import Console
 from rich.progress import Progress, TaskID, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
@@ -49,7 +49,7 @@ class UnpackFlat:
         dry_run: bool = False,
         workers: int = DEFAULT_WORKERS,
         compute_hash: bool = True,
-        manifest_format: str = "jsonl",
+        manifest_format: Literal["jsonl", "csv"] = "jsonl",
         password: Optional[str] = None,
         console: Optional[Console] = None,
         progress_callback: Optional[Callable[[str, int], None]] = None
@@ -89,7 +89,25 @@ class UnpackFlat:
         
         # Track processed archives to avoid re-processing
         self._processed_archives: set[str] = set()
+
+        # Distinct files seen while scanning. Each round re-walks the work dir,
+        # so a plain counter would count the same file once per round (and the
+        # summary would report far more files than actually exist).
+        self._scanned_paths: set[Path] = set()
     
+    @property
+    def work_dir(self) -> Path:
+        """
+        Working directory, guaranteed non-None.
+
+        _work_dir is Optional until _setup_work_dir() runs; callers used it as a
+        plain Path, which the type checker rightly rejected and which would fail
+        at runtime if the setup step were ever skipped.
+        """
+        if self._work_dir is None:
+            raise RuntimeError("Working directory is not set up yet")
+        return self._work_dir
+
     def _check_prerequisites(self) -> bool:
         """Check that 7-Zip is available."""
         available, message = check_7z_available()
@@ -136,18 +154,21 @@ class UnpackFlat:
             List of archive file paths
         """
         archives = []
-        
+
         for root, _, files in os.walk(directory):
             for file in files:
                 file_path = Path(root) / file
-                self.stats.scanned_files += 1
-                
+                # Count distinct files, not walk hits: this dir is re-scanned
+                # every round, so incrementing a counter would inflate the total.
+                self._scanned_paths.add(file_path.resolve())
+
                 if is_archive(file_path):
                     # Skip already processed archives
                     archive_id = f"{file_path.name}_{file_path.stat().st_size}"
                     if archive_id not in self._processed_archives:
                         archives.append(file_path)
-        
+
+        self.stats.scanned_files = len(self._scanned_paths)
         return archives
     
     def _scan_for_regular_files(self, directory: Path) -> list[Path]:
@@ -212,23 +233,26 @@ class UnpackFlat:
     def _run_extraction_round(
         self,
         round_num: int,
+        archives: list[Path],
         progress: Optional[Progress] = None,
         task_id: Optional[TaskID] = None
     ) -> int:
         """
         Run a single round of archive extraction.
-        
+
         Args:
             round_num: Current round number
+            archives: Archives found by the caller's scan. Passed in rather than
+                re-scanned here: run() already scanned this round, and scanning
+                again walked the whole tree a second time per round.
             progress: Optional Rich progress bar
             task_id: Optional task ID for progress bar
-            
+
         Returns:
             Number of archives extracted this round
         """
-        archives = self._scan_for_archives(self._work_dir)
         self.stats.archives_found += len(archives)
-        
+
         if not archives:
             return 0
         
@@ -245,7 +269,7 @@ class UnpackFlat:
         
         # Extract archives (optionally in parallel)
         def extract_one(archive: Path) -> tuple[Path, bool, str]:
-            extract_subdir = self._work_dir / f"_extracted_{archive.stem}_{id(archive)}"
+            extract_subdir = self.work_dir / f"_extracted_{archive.stem}_{id(archive)}"
             success, message, _ = self._extract_single_archive(archive, extract_subdir)
             return archive, success, message
         
@@ -308,14 +332,14 @@ class UnpackFlat:
             progress: Optional Rich progress bar
             task_id: Optional task ID for progress bar
         """
-        files = self._scan_for_regular_files(self._work_dir)
+        files = self._scan_for_regular_files(self.work_dir)
         
         for file_path in files:
             if progress and task_id:
                 progress.advance(task_id)
             
             original_name = file_path.name
-            relative_source = file_path.relative_to(self._work_dir)
+            relative_source = file_path.relative_to(self.work_dir)
             
             if self.dry_run:
                 would_conflict = resolver.check_conflict(original_name)
@@ -409,7 +433,7 @@ class UnpackFlat:
                         self.console.print(f"\n[bold]Round {round_num}[/bold]")
                         
                         # Scan for archives
-                        archives = self._scan_for_archives(self._work_dir)
+                        archives = self._scan_for_archives(self.work_dir)
                         
                         if not archives:
                             self.console.print("  [dim]No archives found - extraction complete[/dim]")
@@ -423,7 +447,7 @@ class UnpackFlat:
                             total=len(archives)
                         )
                         
-                        extracted = self._run_extraction_round(round_num, progress, task)
+                        extracted = self._run_extraction_round(round_num, archives, progress, task)
                         self.stats.rounds_completed = round_num
                         
                         progress.remove_task(task)
@@ -442,7 +466,7 @@ class UnpackFlat:
                     # Flatten files
                     self.console.print(f"\n[bold]Flattening files to output...[/bold]")
                     
-                    files = self._scan_for_regular_files(self._work_dir)
+                    files = self._scan_for_regular_files(self.work_dir)
                     task = progress.add_task("  Copying files", total=len(files))
                     
                     self._flatten_files(manifest_writer, resolver, progress, task)

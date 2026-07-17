@@ -4,7 +4,7 @@ Filename conflict resolution utilities.
 
 import hashlib
 from pathlib import Path
-from typing import Set, Tuple
+from typing import Optional, Set, Tuple
 
 from .config import HASH_LENGTH
 
@@ -77,7 +77,7 @@ class FilenameResolver:
     def resolve(
         self,
         original_filename: str,
-        source_path: Path = None
+        source_path: Optional[Path] = None
     ) -> Tuple[str, bool]:
         """
         Resolve a filename to a unique name in the output directory.
@@ -143,7 +143,7 @@ class FilenameResolver:
     def get_output_path(
         self,
         original_filename: str,
-        source_path: Path = None
+        source_path: Optional[Path] = None
     ) -> Tuple[Path, str, bool]:
         """
         Get the full output path for a file, resolving conflicts.

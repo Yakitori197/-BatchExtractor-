@@ -167,8 +167,8 @@ def list_archive_contents(archive_path: Path, password: Optional[str] = None) ->
             return False, [result.stderr or result.stdout]
         
         # Parse output to get file list
-        files = []
-        current_file = {}
+        files: list[dict[str, str]] = []
+        current_file: dict[str, str] = {}
         for line in result.stdout.split("\n"):
             line = line.strip()
             if line.startswith("Path = "):

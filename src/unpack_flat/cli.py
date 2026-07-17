@@ -4,6 +4,7 @@ Command-line interface for unpack-flat.
 
 import sys
 from pathlib import Path
+from typing import Literal
 
 import click
 from rich.console import Console
@@ -93,7 +94,9 @@ def main(
     dry_run: bool,
     workers: int,
     no_hash: bool,
-    manifest_format: str,
+    # click.Choice(["jsonl", "csv"]) already constrains this at runtime,
+    # so the narrower annotation is accurate and satisfies the type checker.
+    manifest_format: Literal["jsonl", "csv"],
     password: str,
     check_7z: bool
 ) -> None:

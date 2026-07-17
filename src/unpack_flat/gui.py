@@ -10,10 +10,14 @@ import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 class UnpackFlatGUI:
-    def __init__(self, root):
+    def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("批次壓縮檔工具 - YoLab工作室")
         self.root.geometry("620x550")
@@ -25,7 +29,8 @@ class UnpackFlatGUI:
         # 變數
         self.mode = tk.StringVar(value="A")
         self.selected_path = tk.StringVar(value="")
-        self.selected_files = []
+        # filedialog 回傳的是字串路徑（消費端才轉成 Path）
+        self.selected_files: list[str] = []
         self.is_running = False
         
         # 尋找 7z
@@ -44,7 +49,7 @@ class UnpackFlatGUI:
             self.log("✓ 準備就緒！")
             self.log("")
     
-    def center_window(self):
+    def center_window(self) -> None:
         self.root.update_idletasks()
         width = 620
         height = 550
@@ -52,7 +57,7 @@ class UnpackFlatGUI:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
     
-    def find_7z(self):
+    def find_7z(self) -> Optional[str]:
         """尋找 7z 執行檔"""
         path = shutil.which("7z")
         if path:
@@ -67,7 +72,7 @@ class UnpackFlatGUI:
                 return loc
         return None
     
-    def create_widgets(self):
+    def create_widgets(self) -> None:
         # 主框架
         main_frame = ttk.Frame(self.root, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -189,13 +194,13 @@ class UnpackFlatGUI:
         )
         credit_label.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-5)
     
-    def on_mode_change(self):
+    def on_mode_change(self) -> None:
         """模式變更時重置選擇"""
         self.selected_path.set("")
         self.selected_files = []
         self.file_count_label.config(text="")
     
-    def browse(self):
+    def browse(self) -> None:
         """根據模式開啟檔案/資料夾瀏覽器"""
         if self.mode.get() == "A":
             # 模式 A：選擇資料夾
@@ -225,7 +230,7 @@ class UnpackFlatGUI:
                     text=f"檔案：{', '.join(Path(f).name for f in files[:3])}{'...' if len(files) > 3 else ''}"
                 )
     
-    def log(self, message):
+    def log(self, message: str) -> None:
         """新增訊息到日誌"""
         self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, message + "\n")
@@ -233,13 +238,13 @@ class UnpackFlatGUI:
         self.log_text.config(state=tk.DISABLED)
         self.root.update_idletasks()
     
-    def clear_log(self):
+    def clear_log(self) -> None:
         """清除日誌"""
         self.log_text.config(state=tk.NORMAL)
         self.log_text.delete(1.0, tk.END)
         self.log_text.config(state=tk.DISABLED)
     
-    def set_running(self, running):
+    def set_running(self, running: bool) -> None:
         """設定執行狀態"""
         self.is_running = running
         state = "disabled" if running else "normal"
@@ -251,7 +256,7 @@ class UnpackFlatGUI:
         else:
             self.progress.stop()
     
-    def start_extraction(self):
+    def start_extraction(self) -> None:
         """在背景執行緒開始解壓縮"""
         if not self.seven_zip:
             messagebox.showerror(
@@ -275,7 +280,7 @@ class UnpackFlatGUI:
         self.set_running(True)
         thread.start()
     
-    def run_mode_a(self):
+    def run_mode_a(self) -> None:
         """執行模式 A 解壓縮"""
         try:
             input_folder = Path(self.selected_path.get())
@@ -297,17 +302,21 @@ class UnpackFlatGUI:
                 
                 # 建立簡單的 console 輸出到 GUI
                 class GUIConsole:
-                    def print(self, *args, **kwargs):
+                    # log 函式由建構子注入。原本是先建立實例、再從外部
+                    # 掛上 gui_log 屬性（猴子補丁），型別檢查無從得知該屬性存在。
+                    def __init__(self, log_fn: Callable[[str], None]) -> None:
+                        self.gui_log = log_fn
+
+                    def print(self, *args: Any, **kwargs: Any) -> None:
                         text = " ".join(str(a) for a in args)
                         import re
                         text = re.sub(r'\[.*?\]', '', text)
                         self.gui_log(text)
-                    
-                    def is_terminal(self):
+
+                    def is_terminal(self) -> bool:
                         return False
-                
-                gui_console = GUIConsole()
-                gui_console.gui_log = self.log
+
+                gui_console = GUIConsole(self.log)
                 
                 extractor = UnpackFlat(
                     input_dir=input_folder,
@@ -317,7 +326,9 @@ class UnpackFlatGUI:
                     dry_run=False,
                     workers=4,
                     compute_hash=True,
-                    console=gui_console
+                    # GUIConsole 是刻意的 duck-typing 替身，只實作 UnpackFlat
+                    # 用到的 print/is_terminal 子集，並非真正的 rich Console。
+                    console=cast("Console", gui_console)
                 )
                 
                 stats = extractor.run()
@@ -345,8 +356,15 @@ class UnpackFlatGUI:
         finally:
             self.root.after(0, lambda: self.set_running(False))
     
-    def extract_folder_flat(self, input_folder, output_folder):
+    def extract_folder_flat(self, input_folder: Path, output_folder: Path) -> None:
         """備用方式：解壓所有壓縮檔到平坦資料夾"""
+        # find_7z() 可能回傳 None（未安裝 7-Zip）。原本直接把它塞進 subprocess，
+        # 沒裝 7-Zip 時會在執行期爆掉，這裡明確擋下並告知使用者。
+        seven_zip = self.seven_zip
+        if not seven_zip:
+            self.log("✗ 找不到 7-Zip，無法解壓縮。請先安裝 7-Zip。")
+            return
+
         output_folder.mkdir(parents=True, exist_ok=True)
         
         archive_exts = {'.zip', '.7z', '.rar', '.tar', '.gz', '.bz2', '.xz', '.tgz', '.tbz2'}
@@ -355,7 +373,7 @@ class UnpackFlatGUI:
         for i, arc in enumerate(archives, 1):
             self.log(f"[{i}/{len(archives)}] {arc.name}")
             result = subprocess.run(
-                [self.seven_zip, "x", str(arc), f"-o{output_folder}", "-y"],
+                [seven_zip, "x", str(arc), f"-o{output_folder}", "-y"],
                 capture_output=True,
                 text=True
             )
@@ -364,8 +382,15 @@ class UnpackFlatGUI:
             else:
                 self.log(f"       ✗ 失敗")
     
-    def run_mode_b(self):
+    def run_mode_b(self) -> None:
         """執行模式 B 解壓縮"""
+        # 同 extract_folder_flat：未安裝 7-Zip 時明確擋下，不要把 None 丟給 subprocess
+        seven_zip = self.seven_zip
+        if not seven_zip:
+            self.log("✗ 找不到 7-Zip，無法解壓縮。請先安裝 7-Zip。")
+            self.root.after(0, lambda: self.set_running(False))
+            return
+
         try:
             files = self.selected_files
             
@@ -385,9 +410,10 @@ class UnpackFlatGUI:
             success_count = 0
             fail_count = 0
             
-            for i, file_path in enumerate(files, 1):
-                file_path = Path(file_path)
-                
+            for i, selected in enumerate(files, 1):
+                # selected 是字串路徑；用另一個變數存 Path，不要覆寫原變數的型別
+                file_path = Path(selected)
+
                 # 取得不含副檔名的名稱
                 name = file_path.stem
                 if name.endswith('.tar'):
@@ -400,7 +426,7 @@ class UnpackFlatGUI:
                 self.log(f"       → {name}/")
                 
                 result = subprocess.run(
-                    [self.seven_zip, "x", str(file_path), f"-o{output_dir}", "-y"],
+                    [seven_zip, "x", str(file_path), f"-o{output_dir}", "-y"],
                     capture_output=True,
                     text=True,
                     timeout=3600
@@ -429,7 +455,7 @@ class UnpackFlatGUI:
         finally:
             self.root.after(0, lambda: self.set_running(False))
     
-    def open_folder(self, folder):
+    def open_folder(self, folder: Path) -> None:
         """在檔案總管開啟資料夾"""
         if sys.platform == "win32":
             os.startfile(str(folder))
@@ -439,9 +465,9 @@ class UnpackFlatGUI:
             subprocess.run(["xdg-open", str(folder)])
 
 
-def main():
+def main() -> None:
     root = tk.Tk()
-    app = UnpackFlatGUI(root)
+    UnpackFlatGUI(root)
     root.mainloop()
 
 

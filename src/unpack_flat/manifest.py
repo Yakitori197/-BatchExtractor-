@@ -7,7 +7,8 @@ import hashlib
 import json
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Optional, Literal
+from types import TracebackType
+from typing import Optional, Literal, TextIO
 
 
 @dataclass
@@ -46,27 +47,36 @@ class ManifestWriter:
         self.format = format
         self.compute_hash = compute_hash
         self.entries: list[ManifestEntry] = []
-        self._file_handle = None
-        self._csv_writer = None
-    
+        self._file_handle: Optional[TextIO] = None
+        self._csv_writer: Optional["csv.DictWriter[str]"] = None
+
     def __enter__(self) -> "ManifestWriter":
         """Open the manifest file for writing."""
-        self._file_handle = open(self.output_path, "w", encoding="utf-8", newline="")
-        
+        # Bind to locals first: the attributes are Optional, so using them
+        # directly here would neither type-check nor be None-safe.
+        handle = open(self.output_path, "w", encoding="utf-8", newline="")
+        self._file_handle = handle
+
         if self.format == "csv":
-            self._csv_writer = csv.DictWriter(
-                self._file_handle,
+            writer: "csv.DictWriter[str]" = csv.DictWriter(
+                handle,
                 fieldnames=[
                     "source_path", "output_path", "output_filename",
                     "renamed", "original_filename", "file_size",
                     "sha256", "archive_source"
                 ]
             )
-            self._csv_writer.writeheader()
-        
+            self._csv_writer = writer
+            writer.writeheader()
+
         return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         """Close the manifest file."""
         if self._file_handle:
             self._file_handle.close()
