@@ -5,10 +5,10 @@ Manifest file writer for tracking extracted files.
 import csv
 import hashlib
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import Optional, Literal, TextIO
+from typing import Literal, Optional, TextIO
 
 
 @dataclass
@@ -28,7 +28,7 @@ class ManifestWriter:
     """
     Writes manifest files in JSONL or CSV format.
     """
-    
+
     def __init__(
         self,
         output_path: Path,
@@ -48,7 +48,7 @@ class ManifestWriter:
         self.compute_hash = compute_hash
         self.entries: list[ManifestEntry] = []
         self._file_handle: Optional[TextIO] = None
-        self._csv_writer: Optional["csv.DictWriter[str]"] = None
+        self._csv_writer: Optional[csv.DictWriter[str]] = None
 
     def __enter__(self) -> "ManifestWriter":
         """Open the manifest file for writing."""
@@ -58,7 +58,7 @@ class ManifestWriter:
         self._file_handle = handle
 
         if self.format == "csv":
-            writer: "csv.DictWriter[str]" = csv.DictWriter(
+            writer: csv.DictWriter[str] = csv.DictWriter(
                 handle,
                 fieldnames=[
                     "source_path", "output_path", "output_filename",
@@ -80,7 +80,7 @@ class ManifestWriter:
         """Close the manifest file."""
         if self._file_handle:
             self._file_handle.close()
-    
+
     @staticmethod
     def compute_sha256(file_path: Path) -> str:
         """
@@ -97,7 +97,7 @@ class ManifestWriter:
             for chunk in iter(lambda: f.read(8192), b""):
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
-    
+
     def add_entry(
         self,
         source_path: Path,
@@ -120,14 +120,14 @@ class ManifestWriter:
             The created ManifestEntry
         """
         file_size = output_path.stat().st_size if output_path.exists() else 0
-        
+
         sha256 = None
         if self.compute_hash and output_path.exists():
             try:
                 sha256 = self.compute_sha256(output_path)
             except Exception:
                 pass  # Skip hash on error
-        
+
         entry = ManifestEntry(
             source_path=str(source_path),
             output_path=str(output_path),
@@ -138,24 +138,24 @@ class ManifestWriter:
             sha256=sha256,
             archive_source=archive_source
         )
-        
+
         self.entries.append(entry)
         self._write_entry(entry)
-        
+
         return entry
-    
+
     def _write_entry(self, entry: ManifestEntry) -> None:
         """Write a single entry to the manifest file."""
         if not self._file_handle:
             return
-        
+
         if self.format == "jsonl":
             self._file_handle.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
             self._file_handle.flush()
         elif self.format == "csv" and self._csv_writer:
             self._csv_writer.writerow(asdict(entry))
             self._file_handle.flush()
-    
+
     def get_stats(self) -> dict:
         """
         Get statistics about the manifest entries.
@@ -165,7 +165,7 @@ class ManifestWriter:
         """
         total_size = sum(e.file_size for e in self.entries)
         renamed_count = sum(1 for e in self.entries if e.renamed)
-        
+
         return {
             "total_files": len(self.entries),
             "renamed_files": renamed_count,

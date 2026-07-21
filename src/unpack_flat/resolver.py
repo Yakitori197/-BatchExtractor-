@@ -13,7 +13,7 @@ class FilenameResolver:
     """
     Resolves filename conflicts by appending hash or counter suffixes.
     """
-    
+
     def __init__(self, output_dir: Path):
         """
         Initialize the resolver.
@@ -23,13 +23,13 @@ class FilenameResolver:
         """
         self.output_dir = output_dir
         self._used_names: Set[str] = set()
-        
+
         # Initialize with existing files in output directory
         if output_dir.exists():
             for f in output_dir.iterdir():
                 if f.is_file():
                     self._used_names.add(f.name.lower())
-    
+
     def _split_filename(self, filename: str) -> Tuple[str, str]:
         """
         Split filename into stem and extension, handling special cases.
@@ -42,16 +42,16 @@ class FilenameResolver:
         """
         path = Path(filename)
         name_lower = filename.lower()
-        
+
         # Handle double extensions
         double_exts = [".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma"]
         for ext in double_exts:
             if name_lower.endswith(ext):
                 stem = filename[:-len(ext)]
                 return stem, ext
-        
+
         return path.stem, path.suffix
-    
+
     def _compute_content_hash(self, source_path: Path) -> str:
         """
         Compute a short hash of file content for unique naming.
@@ -73,7 +73,7 @@ class FilenameResolver:
             # Fallback to random-like hash
             import time
             return hashlib.md5(str(time.time_ns()).encode()).hexdigest()[:HASH_LENGTH]
-    
+
     def resolve(
         self,
         original_filename: str,
@@ -90,14 +90,14 @@ class FilenameResolver:
             Tuple of (resolved_filename, was_renamed)
         """
         name_lower = original_filename.lower()
-        
+
         # If no conflict, use original name
         if name_lower not in self._used_names:
             self._used_names.add(name_lower)
             return original_filename, False
-        
+
         stem, ext = self._split_filename(original_filename)
-        
+
         # Strategy 1: Try with content hash
         if source_path and source_path.exists():
             content_hash = self._compute_content_hash(source_path)
@@ -105,7 +105,7 @@ class FilenameResolver:
             if new_name.lower() not in self._used_names:
                 self._used_names.add(new_name.lower())
                 return new_name, True
-        
+
         # Strategy 2: Try with counter
         counter = 1
         while True:
@@ -114,11 +114,11 @@ class FilenameResolver:
                 self._used_names.add(new_name.lower())
                 return new_name, True
             counter += 1
-            
+
             # Safety limit
             if counter > 100000:
                 raise RuntimeError(f"Too many filename conflicts for {original_filename}")
-    
+
     def check_conflict(self, filename: str) -> bool:
         """
         Check if a filename would conflict.
@@ -130,7 +130,7 @@ class FilenameResolver:
             True if there would be a conflict
         """
         return filename.lower() in self._used_names
-    
+
     def reserve_name(self, filename: str) -> None:
         """
         Reserve a filename without actually using it.
@@ -139,7 +139,7 @@ class FilenameResolver:
             filename: The filename to reserve
         """
         self._used_names.add(filename.lower())
-    
+
     def get_output_path(
         self,
         original_filename: str,

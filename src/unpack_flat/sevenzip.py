@@ -49,7 +49,7 @@ def check_7z_available() -> Tuple[bool, str]:
             "  macOS:   brew install p7zip\n"
             "  Linux:   sudo apt install p7zip-full  OR  sudo dnf install p7zip-plugins"
         )
-    
+
     try:
         result = subprocess.run(
             [binary],
@@ -87,25 +87,25 @@ def extract_archive(
     binary = find_7z_binary()
     if not binary:
         raise SevenZipNotFoundError("7-Zip not found in PATH")
-    
+
     # Build command
     # x = extract with full paths
     # -o = output directory
     # -y = assume Yes on all queries (auto overwrite)
     # -p = password
     cmd = [binary, "x", str(archive_path), f"-o{output_dir}"]
-    
+
     if overwrite:
         cmd.append("-y")
     else:
         cmd.append("-aos")  # Skip extracting of existing files
-    
+
     if password:
         cmd.append(f"-p{password}")
     else:
         # Try with empty password first (handles non-encrypted archives)
         cmd.append("-p")
-    
+
     try:
         result = subprocess.run(
             cmd,
@@ -113,7 +113,7 @@ def extract_archive(
             text=True,
             timeout=3600  # 1 hour timeout for large archives
         )
-        
+
         if result.returncode == 0:
             return True, "Extraction successful"
         elif result.returncode == 2:
@@ -126,7 +126,7 @@ def extract_archive(
             return True, f"Extraction completed with warnings: {result.stderr or result.stdout}"
         else:
             return False, f"Extraction failed (code {result.returncode}): {result.stderr or result.stdout}"
-            
+
     except subprocess.TimeoutExpired:
         return False, "Extraction timed out (exceeded 1 hour)"
     except Exception as e:
@@ -147,14 +147,14 @@ def list_archive_contents(archive_path: Path, password: Optional[str] = None) ->
     binary = find_7z_binary()
     if not binary:
         raise SevenZipNotFoundError("7-Zip not found in PATH")
-    
+
     cmd = [binary, "l", "-slt", str(archive_path)]
-    
+
     if password:
         cmd.append(f"-p{password}")
     else:
         cmd.append("-p")
-    
+
     try:
         result = subprocess.run(
             cmd,
@@ -162,10 +162,10 @@ def list_archive_contents(archive_path: Path, password: Optional[str] = None) ->
             text=True,
             timeout=60
         )
-        
+
         if result.returncode != 0:
             return False, [result.stderr or result.stdout]
-        
+
         # Parse output to get file list
         files: list[dict[str, str]] = []
         current_file: dict[str, str] = {}
@@ -179,15 +179,15 @@ def list_archive_contents(archive_path: Path, password: Optional[str] = None) ->
                 current_file["Size"] = line[7:]
             elif line.startswith("Attributes = "):
                 current_file["Attributes"] = line[13:]
-        
+
         if current_file and "Path" in current_file:
             files.append(current_file)
-        
+
         # Filter out directories (attributes starting with D)
         files = [f for f in files if not f.get("Attributes", "").startswith("D")]
-        
+
         return True, files
-        
+
     except subprocess.TimeoutExpired:
         return False, ["Listing timed out"]
     except Exception as e:

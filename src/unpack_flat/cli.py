@@ -12,8 +12,7 @@ from rich.console import Console
 from . import __version__
 from .config import DEFAULT_MAX_ROUNDS, DEFAULT_WORKERS
 from .extractor import UnpackFlat
-from .sevenzip import check_7z_available, SevenZipNotFoundError
-
+from .sevenzip import SevenZipNotFoundError, check_7z_available
 
 console = Console()
 
@@ -119,25 +118,25 @@ def main(
         else:
             console.print(f"[red]✗[/red] {message}")
             sys.exit(1)
-    
+
     # Validate required options for normal operation
     if input_dir is None:
         console.print("[red]Error:[/red] Missing option '-i' / '--input'.")
         sys.exit(2)
-    
+
     if output_dir is None:
         console.print("[red]Error:[/red] Missing option '-o' / '--output'.")
         sys.exit(2)
-    
+
     # Validate input
     if not input_dir.exists():
         console.print(f"[red]Error:[/red] Input directory does not exist: {input_dir}")
         sys.exit(1)
-    
+
     if not input_dir.is_dir():
         console.print(f"[red]Error:[/red] Input path is not a directory: {input_dir}")
         sys.exit(1)
-    
+
     # Check that output is not inside input
     try:
         output_dir.resolve().relative_to(input_dir.resolve())
@@ -145,7 +144,7 @@ def main(
         sys.exit(1)
     except ValueError:
         pass  # Good - output is not inside input
-    
+
     # Check that input is not inside output
     try:
         input_dir.resolve().relative_to(output_dir.resolve())
@@ -153,20 +152,20 @@ def main(
         sys.exit(1)
     except ValueError:
         pass  # Good - input is not inside output
-    
+
     # Validate workers
     if workers < 1:
         console.print("[red]Error:[/red] Workers must be at least 1.")
         sys.exit(1)
-    
+
     if workers > 32:
         console.print("[yellow]Warning:[/yellow] High worker count may cause I/O contention.")
-    
+
     # Validate max rounds
     if max_rounds < 1:
         console.print("[red]Error:[/red] Max rounds must be at least 1.")
         sys.exit(1)
-    
+
     try:
         extractor = UnpackFlat(
             input_dir=input_dir,
@@ -180,14 +179,14 @@ def main(
             password=password,
             console=console
         )
-        
+
         stats = extractor.run()
-        
+
         # Exit code based on results
         if stats.errors > 0:
             sys.exit(2)  # Partial success
         sys.exit(0)
-        
+
     except SevenZipNotFoundError:
         sys.exit(1)
     except KeyboardInterrupt:
@@ -196,7 +195,6 @@ def main(
     except Exception as e:
         console.print(f"\n[red]Unexpected error:[/red] {e}")
         if console.is_terminal:
-            import traceback
             console.print_exception()
         sys.exit(1)
 

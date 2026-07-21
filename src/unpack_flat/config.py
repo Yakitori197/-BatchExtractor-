@@ -56,12 +56,12 @@ def is_archive(path: Path) -> bool:
         True if the file is a recognized archive format
     """
     name_lower = path.name.lower()
-    
+
     # Check double extensions first
     for ext in DOUBLE_EXTENSIONS:
         if name_lower.endswith(ext):
             return True
-    
+
     # Check single extensions
     suffix = path.suffix.lower()
     return suffix in ARCHIVE_EXTENSIONS
@@ -78,9 +78,9 @@ def get_archive_extension(path: Path) -> str:
         The archive extension (e.g., '.tar.gz' or '.zip')
     """
     name_lower = path.name.lower()
-    
+
     for ext in DOUBLE_EXTENSIONS:
         if name_lower.endswith(ext):
             return ext
-    
+
     return path.suffix.lower()
