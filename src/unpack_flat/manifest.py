@@ -2,6 +2,7 @@
 Manifest file writer for tracking extracted files.
 """
 
+import contextlib
 import csv
 import hashlib
 import json
@@ -123,10 +124,8 @@ class ManifestWriter:
 
         sha256 = None
         if self.compute_hash and output_path.exists():
-            try:
+            with contextlib.suppress(Exception):  # Skip hash on error
                 sha256 = self.compute_sha256(output_path)
-            except Exception:
-                pass  # Skip hash on error
 
         entry = ManifestEntry(
             source_path=str(source_path),

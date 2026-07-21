@@ -2,6 +2,7 @@
 Main extractor module - recursively extracts archives and flattens output.
 """
 
+import contextlib
 import os
 import shutil
 import tempfile
@@ -139,10 +140,8 @@ class UnpackFlat:
     def _cleanup(self) -> None:
         """Clean up temporary directories."""
         if self._temp_dir:
-            try:
+            with contextlib.suppress(Exception):
                 self._temp_dir.cleanup()
-            except Exception:
-                pass
 
     def _scan_for_archives(self, directory: Path) -> list[Path]:
         """
@@ -289,10 +288,8 @@ class UnpackFlat:
 
                         # Delete archive if not keeping
                         if not self.keep_archives and archive.exists():
-                            try:
+                            with contextlib.suppress(Exception):
                                 archive.unlink()
-                            except Exception:
-                                pass
                     else:
                         self.stats.errors += 1
                         self.stats.error_messages.append(f"{archive.name}: {message}")
@@ -307,10 +304,8 @@ class UnpackFlat:
                     self.stats.archives_extracted += 1
 
                     if not self.keep_archives and archive.exists():
-                        try:
+                        with contextlib.suppress(Exception):
                             archive.unlink()
-                        except Exception:
-                            pass
                 else:
                     self.stats.errors += 1
                     self.stats.error_messages.append(f"{archive.name}: {message}")
