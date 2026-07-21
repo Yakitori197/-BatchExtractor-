@@ -5,7 +5,6 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional, Tuple
 
 from .config import SEVEN_ZIP_BINARIES
 
@@ -20,7 +19,7 @@ class ExtractionError(Exception):
     pass
 
 
-def find_7z_binary() -> Optional[str]:
+def find_7z_binary() -> str | None:
     """
     Find the 7-Zip binary in PATH.
     
@@ -34,7 +33,7 @@ def find_7z_binary() -> Optional[str]:
     return None
 
 
-def check_7z_available() -> Tuple[bool, str]:
+def check_7z_available() -> tuple[bool, str]:
     """
     Check if 7-Zip is available and get its version.
     
@@ -69,9 +68,9 @@ def check_7z_available() -> Tuple[bool, str]:
 def extract_archive(
     archive_path: Path,
     output_dir: Path,
-    password: Optional[str] = None,
+    password: str | None = None,
     overwrite: bool = True
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Extract an archive using 7-Zip.
     
@@ -133,7 +132,7 @@ def extract_archive(
         return False, f"Extraction error: {e}"
 
 
-def list_archive_contents(archive_path: Path, password: Optional[str] = None) -> Tuple[bool, list]:
+def list_archive_contents(archive_path: Path, password: str | None = None) -> tuple[bool, list]:
     """
     List contents of an archive without extracting.
     

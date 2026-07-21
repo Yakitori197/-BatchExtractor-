@@ -3,10 +3,9 @@ Configuration constants and supported archive formats.
 """
 
 from pathlib import Path
-from typing import FrozenSet
 
 # Supported archive extensions (lowercase)
-ARCHIVE_EXTENSIONS: FrozenSet[str] = frozenset({
+ARCHIVE_EXTENSIONS: frozenset[str] = frozenset({
     ".zip",
     ".7z",
     ".rar",
@@ -29,7 +28,7 @@ ARCHIVE_EXTENSIONS: FrozenSet[str] = frozenset({
 })
 
 # Common double extensions (handled specially)
-DOUBLE_EXTENSIONS: FrozenSet[str] = frozenset({
+DOUBLE_EXTENSIONS: frozenset[str] = frozenset({
     ".tar.gz",
     ".tar.bz2",
     ".tar.xz",

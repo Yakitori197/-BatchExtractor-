@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    { name = "Your Name", email = "your@email.com" }
+    { name = "YoLab" }
 ]
 keywords = ["archive", "extract", "unpack", "flatten", "7z", "zip", "rar", "tar"]
 classifiers = [
@@ -47,9 +47,9 @@ unpack-flat = "unpack_flat.cli:main"
 unpack-flat-gui = "unpack_flat.gui:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/unpack-flat"
-Repository = "https://github.com/yourusername/unpack-flat"
-Issues = "https://github.com/yourusername/unpack-flat/issues"
+Homepage = "https://github.com/Yakitori197/-BatchExtractor-"
+Repository = "https://github.com/Yakitori197/-BatchExtractor-"
+Issues = "https://github.com/Yakitori197/-BatchExtractor-/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/unpack_flat"]
@@ -64,7 +64,7 @@ include = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]

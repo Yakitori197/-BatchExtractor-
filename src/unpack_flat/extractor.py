@@ -5,10 +5,11 @@ Main extractor module - recursively extracts archives and flattens output.
 import os
 import shutil
 import tempfile
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Literal, Optional
+from typing import Literal
 
 from rich.console import Console
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, SpinnerColumn, TaskID, TextColumn
@@ -50,9 +51,9 @@ class UnpackFlat:
         workers: int = DEFAULT_WORKERS,
         compute_hash: bool = True,
         manifest_format: Literal["jsonl", "csv"] = "jsonl",
-        password: Optional[str] = None,
-        console: Optional[Console] = None,
-        progress_callback: Optional[Callable[[str, int], None]] = None
+        password: str | None = None,
+        console: Console | None = None,
+        progress_callback: Callable[[str, int], None] | None = None
     ):
         """
         Initialize the extractor.
@@ -84,8 +85,8 @@ class UnpackFlat:
         self.stats = ExtractionStats()
 
         # Working directory for extraction
-        self._work_dir: Optional[Path] = None
-        self._temp_dir: Optional[tempfile.TemporaryDirectory] = None
+        self._work_dir: Path | None = None
+        self._temp_dir: tempfile.TemporaryDirectory | None = None
 
         # Track processed archives to avoid re-processing
         self._processed_archives: set[str] = set()
@@ -234,8 +235,8 @@ class UnpackFlat:
         self,
         round_num: int,
         archives: list[Path],
-        progress: Optional[Progress] = None,
-        task_id: Optional[TaskID] = None
+        progress: Progress | None = None,
+        task_id: TaskID | None = None
     ) -> int:
         """
         Run a single round of archive extraction.
@@ -318,10 +319,10 @@ class UnpackFlat:
 
     def _flatten_files(
         self,
-        manifest_writer: Optional[ManifestWriter],
+        manifest_writer: ManifestWriter | None,
         resolver: FilenameResolver,
-        progress: Optional[Progress] = None,
-        task_id: Optional[TaskID] = None
+        progress: Progress | None = None,
+        task_id: TaskID | None = None
     ) -> None:
         """
         Flatten all regular files to the output directory.

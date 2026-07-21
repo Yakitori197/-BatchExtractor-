@@ -8,7 +8,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import Literal, Optional, TextIO
+from typing import Literal, TextIO
 
 
 @dataclass
@@ -20,7 +20,7 @@ class ManifestEntry:
     renamed: bool  # Whether the file was renamed due to conflict
     original_filename: str  # Original filename before renaming
     file_size: int  # File size in bytes
-    sha256: Optional[str] = None  # SHA256 hash (optional)
+    sha256: str | None = None  # SHA256 hash (optional)
     archive_source: str = ""  # Which archive this file came from
 
 
@@ -47,8 +47,8 @@ class ManifestWriter:
         self.format = format
         self.compute_hash = compute_hash
         self.entries: list[ManifestEntry] = []
-        self._file_handle: Optional[TextIO] = None
-        self._csv_writer: Optional[csv.DictWriter[str]] = None
+        self._file_handle: TextIO | None = None
+        self._csv_writer: csv.DictWriter[str] | None = None
 
     def __enter__(self) -> "ManifestWriter":
         """Open the manifest file for writing."""
@@ -73,9 +73,9 @@ class ManifestWriter:
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         """Close the manifest file."""
         if self._file_handle:

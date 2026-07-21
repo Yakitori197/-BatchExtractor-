@@ -8,9 +8,10 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+from collections.abc import Callable
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -57,7 +58,7 @@ class UnpackFlatGUI:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
-    def find_7z(self) -> Optional[str]:
+    def find_7z(self) -> str | None:
         """尋找 7z 執行檔"""
         path = shutil.which("7z")
         if path:
